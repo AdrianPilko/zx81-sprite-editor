@@ -19,7 +19,7 @@
 // oooooooo
 // oooooooo
 // ---oo---
-
+// --------
 // this becomes the output that can be directly pasted into the z80 (pasmo assembler) source file
 //
 //spriteData
@@ -114,36 +114,38 @@ int32_t parseInput(const std::string & inFileName, const std::string & outFileNa
 
     // need to check each 2x2 block for the pixel type, the -1 is to go to penulimate row in outer loop
     // as the nested loop will handle this
-    int32_t linearIndex = 0;
-    int32_t resultIndex = 0;
-    std::string linearVersion = "    ";
-    bool found = false;
     
-    for (auto row = 0; row < fileAsStrVec.size() - 1; row++)
+    for (auto rowOuter = 0; rowOuter < fileAsStrVec.size() - 1; rowOuter+=2)
     {   
-        for (auto columnOuter = 0; columnOuter < fileAsStrVec[row].size() - 1; columnOuter++)
+        for (auto columnOuter = 0; columnOuter < fileAsStrVec[rowOuter].size() - 1; columnOuter+=2)
         {
-            for (auto col = 0; col < 2; col++)
+            int32_t linearIndex = 0;
+            std::string linearVersion = "    ";
+            for (auto row = 0; row < 2; row++)
             {
-                linearVersion[linearIndex++] = fileAsStrVec[row][col+columnOuter];
-            }
-            if (linearIndex >= 4)
-            {
-                linearIndex = 0;
-                for (size_t fIndex = 0; fIndex < patterns.size(); fIndex++)
+                for (auto col = 0; col < 2; col++)
                 {
-                    if (patterns[fIndex].find(linearVersion) != std::string::npos)
-                    {
-                        found = true;
-                        oStream << patternHexCodes.at(fIndex) << ",";
-                    } 
+                    linearVersion[linearIndex++] = fileAsStrVec[row+rowOuter][col+columnOuter];
                 }
-                std::string linearVersion = "    ";
+            }
+            for (size_t fIndex = 0; fIndex < patterns.size(); fIndex++)
+            {
+                if (patterns[fIndex].find(linearVersion) != std::string::npos)
+                {
+                    oStream << patternHexCodes.at(fIndex);
+                    if (columnOuter < fileAsStrVec[rowOuter].size() - 2)
+                    {
+                        oStream << ",";
+                    }
+                } 
             }
         }
 
         oStream <<std::endl;
-        oStream << "   DB ";
+        if (rowOuter < fileAsStrVec.size() - 2)
+        {
+            oStream << "   DB ";
+        }
     }
 
     iStream.close();
