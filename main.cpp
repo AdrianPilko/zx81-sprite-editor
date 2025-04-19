@@ -10,6 +10,8 @@
 // the "normal grey" pixels are represented by *
 // the "inverse grey" pixels are represented by @
 // 
+// On Linux: build with g++ main.cpp -o convert
+// or use vscode and c++ extension for your OS
 
 // example input of a space ship 4 blocks by 4 (8 low res pixels by 8)
 // ---oo---
@@ -22,11 +24,33 @@
 // --------
 // this becomes the output that can be directly pasted into the z80 (pasmo assembler) source file
 //
-//spriteData
-//    DB  $00,$85,$05,$00
-//    DB  $00,$06,$86,$00
-//    DB  $81,$80,$80,$82
-//    DB  $03,$84,$07,$03
+//This is the small space ship/plane as a 4x4 character block for the zx81
+//
+//   DB $00,$85,$05,$00
+//   DB $87,$82,$81,$04
+//   DB $80,$80,$80,$80
+//   DB $00,$02,$01,$00
+
+// example z80 subroutine to draw the sprite
+//;;; hl = start of sprite memory
+//;;; de = offset position in screen memory top left of sprite - no limit check done (yet)
+//;;; c  = width of sprite (normally 8 to keep things "simple")
+//;;; b  = rows in sprite (normally 8 to keep things "simple")
+//drawSprite
+//    push bc
+//    push de
+//    ld b, 0               ;; just doing columns in c so zero b
+//    ldir                  ;; ldir repeats ld (de), (hl) until bc = 0 and increments hl and de
+//    pop de
+//    ex de, hl
+//    ld bc, 33             ;; move next write position to next row
+//    add hl, bc
+//    ex de, hl
+//    pop bc
+//    djnz drawSprite
+//    ret
+
+
 
 // the zx81 graphic blocks are defined as follows 2 by 2
 // the first 11 are normal the last 11 are inverse video and are +128 of the normal ones
@@ -112,6 +136,10 @@ int32_t parseInput(const std::string & inFileName, const std::string & outFileNa
         return EXIT_FAILURE;
     }
 
+    std::cout << "Number of rows == " << fileAsStrVec.size() << " number of columns==" << currentLineLen << std::endl;
+    std::cout << "This becomes a graphic of " << fileAsStrVec.size() / 2 << "x" << currentLineLen/2 << " character blocks"<< std::endl;
+    
+
     // need to check each 2x2 block for the pixel type, the -1 is to go to penulimate row in outer loop
     // as the nested loop will handle this
     
@@ -128,17 +156,32 @@ int32_t parseInput(const std::string & inFileName, const std::string & outFileNa
                     linearVersion[linearIndex++] = fileAsStrVec[row+rowOuter][col+columnOuter];
                 }
             }
+            bool found = false;
+
             for (size_t fIndex = 0; fIndex < patterns.size(); fIndex++)
             {
                 if (patterns[fIndex].find(linearVersion) != std::string::npos)
                 {
                     oStream << patternHexCodes.at(fIndex);
+
                     if (columnOuter < fileAsStrVec[rowOuter].size() - 2)
                     {
                         oStream << ",";
                     }
+                    found = true; 
                 } 
             }
+            if (found == false)
+            {
+                std::cerr << "unknown character combination at row" << rowOuter << ", col " << columnOuter << 
+                    " inserting blank to maintain row column in output!!" << std::endl;
+                    oStream << patternHexCodes.at(0);
+
+                if (columnOuter < fileAsStrVec[rowOuter].size() - 2)
+                {
+                    oStream << ",";
+                }
+            }                  
         }
 
         oStream <<std::endl;
